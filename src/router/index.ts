@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useProductStore } from '@/stores/product';
+import { useLoadingStore } from '@/stores/loading';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,7 +29,26 @@ const router = createRouter({
           path: ':productId',
           name: 'product',
           component: () => import('../views/ProductView.vue'),
-          props: true,
+          meta: {
+            globalLoading: true,
+          },
+          beforeEnter: async (to, from, next) => {
+            const productId = to.params.productId as string;
+
+            if (!productId) {
+              next('products');
+            } else {
+              const { loadProduct } = useProductStore();
+
+              const foundedProduct = await loadProduct(productId);
+
+              if (foundedProduct) {
+                next();
+              } else {
+                next('not-found');
+              }
+            }
+          },
         }
       ]
     },
@@ -39,6 +60,18 @@ const router = createRouter({
       }),
     },
   ]
+})
+
+router.beforeEach((to) => {
+  if (to.meta.globalLoading) {
+    const { setLoading } = useLoadingStore();
+    setLoading(true);
+  }
+})
+
+router.afterEach(() => {
+  const { setLoading } = useLoadingStore();
+  setLoading(false);
 })
 
 export default router
